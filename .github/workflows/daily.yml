@@ -10,6 +10,11 @@ on:
     - cron: '30 23 * * *'
     - cron: '0 0 * * *'
 
+# 這些 job 只打外部 API（PCC / CF Worker），只需要 checkout 的 contents: read，
+# 不需要任何寫入權限。收斂預設 GITHUB_TOKEN 權限。
+permissions:
+  contents: read
+
 jobs:
   reset:
     runs-on: ubuntu-latest

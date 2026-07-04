@@ -166,6 +166,7 @@ def fetch_list(url: str, session, max_pages: int = 50) -> str:
 def main():
     print(f"daily list scrape, today={TODAY}")
     all_rows = []
+    failed_sources = 0  # P2-6：某來源整天沒抓到 → 最後非零退出讓 GHA 通知
     for i, src in enumerate(SOURCES):
         # Don't print source name (it appears in secret RUNNER_CONFIG and can leak target hints).
         print(f"\n== source #{i+1} / {src['subtype'] or '-'} (max_pages={src.get('max_pages', 50)}) ==", flush=True)
@@ -189,6 +190,7 @@ def main():
         except Exception as e:
             # Only exception class (message may contain URL/host)
             print(f"  ERR: {type(e).__name__}", flush=True)
+            failed_sources += 1
         try:
             session.close()
         except Exception:
@@ -200,6 +202,7 @@ def main():
     batch_size = 200
     total_inserted = 0
     total_skipped = 0
+    post_failed = 0
     for i in range(0, len(all_rows), batch_size):
         batch = all_rows[i:i+batch_size]
         r = cr.post(
@@ -217,7 +220,14 @@ def main():
             total_skipped += j.get("skipped", 0)
         else:
             print(f"  POST batch {i} failed: {r.status_code}")
+            post_failed += 1
     print(f"\n結果：inserted={total_inserted}, skipped (already exist)={total_skipped}")
+
+    # P2-6：有來源整天沒抓到 / POST 失敗 → 非零退出，讓 GHA 標紅 + 寄失敗通知，
+    # 使用者才會知道「今天少了一批案子」，而不是靜默漏掉。（不印來源名，避免洩漏目標）
+    if failed_sources or post_failed:
+        print(f"\n⚠️ {failed_sources} 個來源抓取失敗、{post_failed} 個 POST batch 失敗")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

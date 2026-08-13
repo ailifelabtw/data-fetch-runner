@@ -1,0 +1,70 @@
+name: NIAR probe
+
+# 一次性連線測試：確認 GitHub Actions runner 連不連得到 openinfo.niar.org.tw。
+# 背景：CF Worker 的 scrapeNiar() 自 2026-08-03 起每天回 HTTP 522（CF 邊緣連不到來源），
+# 導致 niar 已連續 10 天沒有新案進 D1/R2。本機（住宅 IP）抓同一網址是 200。
+# 這支只讀公開列表頁、只印狀態與筆數，不使用任何 secret（本 repo 是 public，log 公開）。
+# 驗證完即可刪除。
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: DNS 解析
+        run: |
+          echo "── getent hosts ──"
+          getent hosts openinfo.niar.org.tw || echo "(A 記錄查不到)"
+          echo "── AAAA ──"
+          getent ahostsv6 openinfo.niar.org.tw || echo "(沒有 AAAA 記錄)"
+
+      - name: 抓列表頁（預設路由）
+        id: default
+        continue-on-error: true
+        run: |
+          UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+          curl -sS -A "$UA" \
+            --connect-timeout 15 --max-time 45 \
+            -o niar.html \
+            -w 'http_code=%{http_code} size=%{size_download} connect=%{time_connect}s total=%{time_total}s\n' \
+            "https://openinfo.niar.org.tw/ext/po/po_bulletin_query.php"
+
+      - name: 抓列表頁（強制 IPv4）
+        continue-on-error: true
+        run: |
+          UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+          curl -sS --ipv4 -A "$UA" \
+            --connect-timeout 15 --max-time 45 \
+            -o /dev/null \
+            -w 'ipv4: http_code=%{http_code} size=%{size_download} total=%{time_total}s\n' \
+            "https://openinfo.niar.org.tw/ext/po/po_bulletin_query.php"
+
+      - name: 解析 po_id 筆數
+        continue-on-error: true
+        run: |
+          if [ -s niar.html ]; then
+            n=$(grep -oE 'tender_data\.php\?po_id=[0-9]+' niar.html | sort -u | wc -l)
+            echo "po_id 命中: $n"
+            grep -oE 'tender_data\.php\?po_id=[0-9]+' niar.html | sort -u | head -20
+          else
+            echo "沒抓到內容（niar.html 空的或不存在）"
+          fi
+
+      - name: 抓一筆 detail PDF
+        continue-on-error: true
+        run: |
+          UA='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+          pk=$(grep -oE 'po_id=[0-9]+' niar.html 2>/dev/null | head -1 | cut -d= -f2)
+          if [ -z "$pk" ]; then echo "沒有 pk 可測，略過"; exit 0; fi
+          echo "測 pk=$pk"
+          curl -sS -A "$UA" \
+            --connect-timeout 15 --max-time 45 \
+            -o /dev/null \
+            -w 'detail: http_code=%{http_code} size=%{size_download} type=%{content_type} total=%{time_total}s\n' \
+            "https://openinfo.niar.org.tw/ext/po/tender_data.php?po_id=${pk}"

@@ -19,7 +19,7 @@ from datetime import datetime
 
 from curl_cffi import requests as cr
 
-from config import BASE, DAILY_SOURCES
+from config import BASE, DAILY_SOURCES, IMPERSONATE, CHROME_UA
 
 warnings.filterwarnings("ignore")
 
@@ -27,13 +27,10 @@ API_ENDPOINT = os.environ["API_ENDPOINT"].rstrip("/")
 API_TOKEN = os.environ["API_TOKEN"]
 HEADERS_AUTH = {"Authorization": f"Bearer {API_TOKEN}"}
 
-# Full Chrome 131 header set (some targets slow-lane requests lacking these).
+# Full Chrome header set (some targets slow-lane requests lacking these).
+# UA 版號跟 config.IMPERSONATE 對齊，不要各自寫死——WAF 是看 UA 擋的。
 TARGET_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": CHROME_UA,
     "Accept": (
         "text/html,application/xhtml+xml,application/xml;q=0.9,"
         "image/avif,image/webp,image/apng,*/*;q=0.8,"
@@ -171,7 +168,7 @@ def main():
         # Don't print source name (it appears in secret RUNNER_CONFIG and can leak target hints).
         print(f"\n== source #{i+1} / {src['subtype'] or '-'} (max_pages={src.get('max_pages', 50)}) ==", flush=True)
         # Fresh session per source (isolate any slow-lane state)
-        session = cr.Session(impersonate="chrome120", verify=False, timeout=60)
+        session = cr.Session(impersonate=IMPERSONATE, verify=False, timeout=60)
         session.headers.update(TARGET_HEADERS)
         try:
             from config import detail_referer

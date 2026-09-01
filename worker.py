@@ -34,7 +34,7 @@ HEADERS_AUTH = {"Authorization": f"Bearer {API_TOKEN}"}
 
 from config import (
     BASE, CAPTCHA_MARKERS, REQUIRED_KEYWORDS,
-    DETAIL_LINK_REGEX, KIND_MAP,
+    DETAIL_LINK_REGEX, KIND_MAP, IMPERSONATE,
     search_url, detail_referer,
 )
 
@@ -126,7 +126,7 @@ def pick_matching(results: list[dict], target_org: str) -> list[dict]:
 
 
 def make_session():
-    s = cr.Session(impersonate="chrome120", verify=False, timeout=30)
+    s = cr.Session(impersonate=IMPERSONATE, verify=False, timeout=30)
     return s
 
 

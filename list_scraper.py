@@ -25,7 +25,7 @@ from curl_cffi import requests as cr
 
 from config import (
     BASE, CAPTCHA_MARKERS, REQUIRED_KEYWORDS, SOURCE_PREFIX,
-    LIST_PAGE_PARAM, DETAIL_LINK_REGEX, KIND_MAP,
+    LIST_PAGE_PARAM, DETAIL_LINK_REGEX, KIND_MAP, IMPERSONATE, CHROME_UA,
     list_url, detail_referer,
 )
 
@@ -45,10 +45,7 @@ TIMEOUT = 30
 RETRY = 3
 
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-    ),
+    "User-Agent": CHROME_UA,
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
 }
@@ -143,7 +140,7 @@ def main():
     print(f"start range={START_DATE}~{END_DATE} tag={SOURCE_TAG} pages={PAGE_START}-{PAGE_END}", flush=True)
     print(f"  PACING_SEC={PACING_SEC} PARALLEL_POSTS={PARALLEL_POSTS} LIST_SEEN_DATE={LIST_SEEN_DATE}", flush=True)
 
-    session = cr.Session(impersonate="chrome120")
+    session = cr.Session(impersonate=IMPERSONATE)
     session.get(detail_referer(), headers=HEADERS, timeout=TIMEOUT)
 
     pool = ThreadPoolExecutor(max_workers=PARALLEL_POSTS)

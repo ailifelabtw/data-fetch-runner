@@ -12,7 +12,7 @@ import time
 import warnings
 from curl_cffi import requests as cr
 
-from config import CAPTCHA_MARKERS, detail_referer
+from config import CAPTCHA_MARKERS, IMPERSONATE, detail_referer
 
 warnings.filterwarnings("ignore")
 
@@ -126,7 +126,7 @@ def process_task(session, task, rate_state):
 
 def main():
     print(f"daily runner {RUNNER_ID} start, batch={BATCH_SIZE}, max_iter={MAX_ITER}")
-    session = cr.Session(impersonate="chrome120", verify=False, timeout=30)
+    session = cr.Session(impersonate=IMPERSONATE, verify=False, timeout=30)
     try:
         session.get(detail_referer())
     except Exception:
